@@ -278,7 +278,7 @@ if __name__ == '__main__':
                 run_jobs(d, n['tasks'])
             sleep(1)
             if DEBUG >= 3:
-                tprint(3, "Runlevel: %d" % run_level)
+                tprint(3, "Runlevel: %d" % run_level())
                 tprint(3, "ACTIVE: " + repr(get_populated('ACTIVE')))
                 tprint(3, "PAUSED: " + repr(get_populated('PAUSED')))
                 tprint(3, "WAITING: " + repr(get_populated('WAITING')))
