@@ -103,20 +103,19 @@ def run_jobs(directory, job_list):
                 dprint(2, "Waiting for keyfile to settle.")
                 mtime = os.stat(fpath).st_mtime
                 sleep(1)
-            keyfile = open(fpath)
-            # Remove from directory right away
-            os.unlink(fpath)
-            for jdir in keyfile:
-                jdir = jdir.strip()
-                dprint(2, "Found jobdir [%s] in [%s]" % (jdir, n))
-                if len(jdir) == 0:
-                    tprint(0, "No path defined in [%s]" % n)
-                    continue
-                jpath = os.path.join(directory, jdir)
-                if not os.access(jpath, os.R_OK | os.W_OK | os.X_OK):
-                    tprint(0, "Unable to enter [%s]" % jpath)
-                    continue
-                job_list[k].enqueue(jpath)
-            keyfile.close()
+            with open(fpath) as keyfile:
+                # Remove from directory right away
+                os.unlink(fpath)
+                for jdir in keyfile:
+                    jdir = jdir.strip()
+                    dprint(2, "Found jobdir [%s] in [%s]" % (jdir, n))
+                    if len(jdir) == 0:
+                        tprint(0, "No path defined in [%s]" % n)
+                        continue
+                    jpath = os.path.join(directory, jdir)
+                    if not os.access(jpath, os.R_OK | os.W_OK | os.X_OK):
+                        tprint(0, "Unable to enter [%s]" % jpath)
+                        continue
+                    job_list[k].enqueue(jpath)
 
 

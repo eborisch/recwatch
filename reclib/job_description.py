@@ -203,14 +203,14 @@ class JobDescription(object):
         msg = "# %s: [%s] MD5 check %%s\n" % (stamp(), self.NAME)
 
         if s.returncode == 0:
-            md5_tmp = open(jpath('md5_tmp'), 'w')
-            md5_tmp.write(csumout[0])
-            md5_tmp.close()
+            with open(jpath('md5_tmp'), 'w') as md5_tmp:
+                md5_tmp.write(csumout[0])
             os.rename(jpath('md5_tmp'), jpath('md5_done'))
             self.log.write(msg % "succeeded")
             self.hprint(0, "MD5 check succeeded")
         else:
-            open(jpath('md5_bad'), 'w').write(csumout[0])
+            with open(jpath('md5_bad'), 'w') as md5_bad:
+                md5_bad.write(csumout[0])
             self.log.write(msg % "FAILED")
             self.hprint(0, "MD5 check FAILED")
 
@@ -392,10 +392,10 @@ class JobDescription(object):
 
             # Make sure not to sneak in or leave another task runnning.
             with ACTIVE_LOCK:
-                if self.PRIORITY > run_level:
+                if self.PRIORITY > run_level():
                     self.hprint(0, "Waiting our turn.")
                     self.timer.pause()
-                    while self.PRIORITY > run_level:
+                    while self.PRIORITY > run_level():
                         WAITING[self.PRIORITY] = True
                         ACTIVE_LOCK.wait()
                     WAITING[self.PRIORITY] = None

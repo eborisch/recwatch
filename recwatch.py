@@ -24,22 +24,16 @@
 
 from __future__ import print_function
 
-import Queue
 import argparse
 import os
 import re
-import shlex
 import signal
 import subprocess
 import sys
-import thread
-import threading
-import traceback
 
 from collections import defaultdict
 from errno import EEXIST
 from tempfile import mktemp
-from textwrap import dedent
 from time import sleep
 
 from reclib.util import dprint, atomic_create, tprint, stamp, set_email
@@ -51,6 +45,7 @@ from reclib.conf import set_prefix, load_conf, get_prefix
 
 OURPATH = os.path.split(os.path.abspath(__file__))
 PIDPATH = os.path.join(OURPATH[0], '.' + OURPATH[1] + '.PID')
+
 
 def highlander(sacrifice=False, wait=0, quiet=False, _retried=False):
     """
