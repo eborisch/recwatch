@@ -40,7 +40,7 @@ from reclib.util import dprint, atomic_create, tprint, stamp, set_email
 from reclib.vars import DEBUG
 from reclib.pid import run_level, get_populated
 from reclib.jobs import QueueRunner, run_jobs
-from reclib.job_description import JobDescription
+from reclib.job_description import JobDescription, set_logpath
 from reclib.conf import set_prefix, load_conf, get_prefix
 
 OURPATH = os.path.split(os.path.abspath(__file__))
@@ -152,6 +152,9 @@ if __name__ == '__main__':
     paa("--prefix_dir", default=get_prefix(),
         help="[{}] Base path for directories".format(get_prefix()),
         metavar="<dir>")
+    paa("--log_dir", default=None,
+        help="Alternate [jobname]/recon.log tree destination", 
+        metavar="<dir>")
     paa("--quiet", default=False, action='store_const',
         const=True,
         help='Exit quietly if already running; notify if not.')
@@ -172,6 +175,9 @@ if __name__ == '__main__':
     if args.quiet:
         # We only reach here on --quiet if there was no watcher running
         print("No watchers running; attempting to launch new watcher.")
+
+    if args.log_dir:
+        set_logpath(args.log_dir)
 
     if args.checkonly:
         os.unlink(PIDPATH)

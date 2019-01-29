@@ -85,6 +85,7 @@ def run_jobs(directory, job_list):
     being watched is updated. Runs through the list job_list.keys() to see
     if a file matching one of the keys exists. If it does, read in the
     contained directory name[s] and enque tasks. Remove the read keyfile.
+    Trailing '/'s in directory names are removed.
 
     This will get called a second time to make sure no additional
     key files have snuck in.
@@ -112,6 +113,9 @@ def run_jobs(directory, job_list):
                     if len(jdir) == 0:
                         tprint(0, "No path defined in [%s]" % n)
                         continue
+                    # Normalize (remove any '/'s from end)
+                    while jdir[-1] == '/':
+                        jdir = jdir[:-1]
                     jpath = os.path.join(directory, jdir)
                     if not os.access(jpath, os.R_OK | os.W_OK | os.X_OK):
                         tprint(0, "Unable to enter [%s]" % jpath)

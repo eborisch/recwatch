@@ -43,6 +43,15 @@ from reclib.util import TaskTimer, c_logger, stamp, DEBUG, tprint, mail_log
 from reclib.pid import thaw_tasks, discard_pid, add_pid, kill_pid_tree, \
                        ACTIVE_LOCK, run_level, WAITING, freeze_tasks
 
+LOGPATH = None
+
+def set_logpath(newpath):
+    global LOGPATH
+    if not os.path.exists(newpath):
+        os.makedirs(newpath)
+    LOGPATH=newpath
+
+
 class JobDescription(object):
     """
     Manages a particular job definition. Has work added to its work queue
@@ -315,7 +324,17 @@ class JobDescription(object):
         if self.log is not None:
             return False
 
-        LOG_BASE = os.path.join(self.job_dir, 'recon.log')
+        if LOGPATH is None: 
+            LOG_BASE = os.path.join(self.job_dir, 'recon.log')
+        else:
+            # job_dir is normalized to remove trailing '/'s
+            logd = os.path.join(LOGPATH,
+                                self.NAME,
+                                os.path.basename(self.job_dir))
+            if not os.path.exists(logd):
+                os.makedirs(logd)
+            LOG_BASE = os.path.join(logd, 'recon.log')
+
         LOG_PAT = LOG_BASE + '.%02d'
         n = 0
         try:
