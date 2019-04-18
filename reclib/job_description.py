@@ -34,7 +34,10 @@ import threading
 import traceback
 
 from collections import defaultdict
+from contextlib import contextmanager
+from datetime import datetime
 from fnmatch import filter as fnfilter
+from shutil import rmtree
 from stat import S_IRUSR, S_IRGRP
 from textwrap import dedent
 from time import sleep
@@ -42,6 +45,8 @@ from time import sleep
 from reclib.util import TaskTimer, c_logger, stamp, DEBUG, tprint, mail_log
 from reclib.pid import thaw_tasks, discard_pid, add_pid, kill_pid_tree, \
                        ACTIVE_LOCK, run_level, WAITING, freeze_tasks
+
+pjoin = os.path.join
 
 LOGPATH = None
 
@@ -51,6 +56,68 @@ def set_logpath(newpath):
         os.makedirs(newpath)
     LOGPATH=newpath
 
+def copytree(A, B, copywhen, exclude=('.origin', '.work', 'latest')):
+    """
+    Copies (recursively) A to B via hard links (when possible), symlinks (copy
+    symlinks as symlinks) and recreating directory structure.
+
+    copywhen() is passed a file path, and returns true (copy) or false to
+    determine which files should be copied.
+
+    Excludes files / directories with names in the dictionary exclude.
+    """
+
+    # Handle case of trailing slash on A or B
+    if A[-1] == '/':
+        A = A[:-1]
+    if B[-1] == '/':
+        B = B[:-1]
+
+    # Clean up any existing output tree
+    if os.path.exists(B):
+        rmtree(B)
+    os.mkdir(B)
+
+    # length of A with trailing slash
+    prefix_len = len(A) + 1
+    for (root, dirs, files) in os.walk(A):
+        # Don't go into work directory itself
+        for omit in exclude:
+            if omit in dirs:
+                dirs.remove(omit)
+            if omit in files:
+                files.remove(omit)
+
+        rel = root[prefix_len:]
+
+        syms = []
+
+        # link files at this level
+        for f in files:
+            fn = pjoin(root, f)
+            if copywhen(fn):
+                # Only link in original files / directories
+                if os.path.islink(fn):
+                    syms.append(f)
+                else:
+                    os.link(fn, pjoin(B, rel, f))
+
+        for d in dirs:
+            dn = pjoin(root, d)
+            if copywhen(dn):
+                # Only link in original files / directories
+                if os.path.islink(dn):
+                    syms.append(d)
+                else:
+                    os.mkdir(pjoin(B, rel, d))
+
+        for s in syms:
+            sn = pjoin(root, s)
+            tgt = os.readlink(sn)
+            if '../' in tgt:
+                # Relative links that don't go up we can copy directly
+                tgt = pjoin(os.path.dirname(sn), os.readlink(sn))
+            os.symlink(tgt, pjoin(B, rel, s))
 
 class JobDescription(object):
     """
@@ -67,7 +134,8 @@ class JobDescription(object):
                  post_command="touch done",
                  command=None,
                  priority=0,
-                 timeout=3600):
+                 timeout=3600,
+                 isolate=False):
         # Constants; set at creation
         self.NAME = name
         self.FILES = files
@@ -76,6 +144,7 @@ class JobDescription(object):
         self.COMMAND = command
         self.PRIORITY = int(max(min(19, priority), 0))
         self.TIMEOUT = timeout
+        self.ISOLATE = isolate
 
         command_error = False
         if type(self.COMMAND) is tuple:
@@ -101,6 +170,10 @@ class JobDescription(object):
         self._reset()
 
     @c_logger
+    def _jpath(self, name):
+        return pjoin(self.job_dir, name)
+
+    @c_logger
     def enqueue(self, job_dir):
         """
         Called from main thread to request this job to be run in the
@@ -110,27 +183,156 @@ class JobDescription(object):
         JobDescription.queues[self.PRIORITY].put((self, job_dir, TaskTimer()))
 
     @c_logger
+    def _isolate(self):
+        """
+        If self.ISOLATE is not set, does nothing.
+
+        Copies (hard-links when possible) files older than job_dir/.origin from
+        job_dir into job_dir/.work
+
+        Creates job_dir/.origin if it doesn't exist.
+        Creates job_dir/.stamp to record start of recon time
+        Sets job_dir to job_dir/.origin
+        """
+        if not self.ISOLATE:
+            return
+
+        origin_file = self._jpath('.origin')
+        if not os.path.exists(origin_file):
+            with open(origin_file, 'w'):
+                pass
+            birth = os.stat(origin_file).st_mtime
+            # If we make an origin file, wait until it is clearly "old"
+            if birth % 1 > 0.0:
+                sleep(.01)
+            else:
+                sleep(1)
+        else:
+            birth = os.stat(origin_file).st_mtime
+
+        # As we are the first thing called on a new job directory, everything
+        # older than .origin is an "input".
+
+        work_dir = self._jpath('.work')
+
+        copytree(self.job_dir, work_dir,
+                 copywhen=lambda f: os.lstat(f).st_mtime <= birth)
+
+        # Make sure the .stamp file is clearly "newer" than the "input"
+        if birth % 1 > 0.0:
+            sleep(.01)
+        else:
+            sleep(1)
+
+        stamp_file = self._jpath('.stamp')
+        with open(stamp_file, 'w') as sfile:
+            # Make sure it is modified if it was somehow left around
+            sfile.write('.')
+
+        self.job_dir = work_dir
+
+    def _harvest(self):
+        """
+        If self.ISOLATE is not set, does nothing.
+
+        Restores job_dir to original (../) job directory
+
+        Copies (hard link / effectively move when possible) newly created
+        output files from .job_dir/.work into job_dir/Run_<stamp> and creates
+        latest->Run_<stamp> symlink
+
+        Cleans up .job_dir/(.work|.stamp)
+
+        Moves recon.log into Run_<stamp>/
+        """
+        if not self.ISOLATE:
+            return
+
+        self.job_dir = os.path.dirname(self.job_dir)
+
+        artifacts = datetime.now().strftime('Run_%Y_%m_%d_%H%M%S')
+        artifacts = self._jpath(artifacts)
+        artifacts_base = artifacts
+        n_exist = 1
+        while os.path.exists(artifacts):
+            artifacts = artifacts_base + '.{}'.format(n_exist)
+            n_exist = n_exist + 1
+
+        os.mkdir(artifacts)
+
+        stamp_file = self._jpath('.stamp')
+        start_time = os.stat(stamp_file).st_mtime
+
+        copytree(self._jpath('.work'), artifacts,
+                 copywhen=lambda f: os.lstat(f).st_mtime >= start_time)
+
+        latest = self._jpath('latest')
+
+        if os.path.lexists(latest):
+            os.unlink(latest)
+
+        os.symlink(os.path.basename(artifacts), latest)
+
+        os.unlink(stamp_file)
+        rmtree(self._jpath('.work'), ignore_errors=True)
+
+        # Leave logs in separate logpath if set.
+        if LOGPATH is None:
+            os.rename(self._jpath('recon.log'),
+                      os.path.join(artifacts, 'recon.log'))
+
+    @c_logger
+    @contextmanager
+    def _isolation(self):
+        """
+        Handles entering and exiting isolation. Effectively does nothing
+        if self.ISOLATE is not set.
+        """
+        self._isolate()
+        try: 
+            yield
+        finally:
+            self._harvest()
+
+    @c_logger
+    @contextmanager
+    def _run_dir(self, directory):
+        """
+        Wraps running of the actual tasks for a directory; ensures
+        cleanup of local attributes for job completion.
+        """
+        self.job_dir = directory
+        try:
+            yield
+        except Exception:
+            self.hprint(0, "Errored while running")
+            # traceback.print_exception(*sys.exc_info())
+            raise
+        finally:
+            thaw_tasks()
+            # We need to read out the timer value outside this context
+            self._reset(reset_timer=False)
+
+    @c_logger
     def process_dir(self, directory):
         """Convenience method to set directory and run all phases."""
         if self.job_dir is not None:
             self.hprint(0,
                         "Job directory is already set?")
             return 1
-        self.job_dir = directory
 
-        try:
-            self.timer.reset()
+        self.timer.reset()
+        # Ensure that even if one of pre/run/post fails we still
+        # isolate/harvest
+        with self._run_dir(directory), self._isolation():
             self._pre()
             self._run()
             self._post()
-        except Exception:
-            self.hprint(0, "Errored while running.")
-            raise
-        finally:
-            thaw_tasks()
-            t = self.timer.seconds()
-            self._reset()
-            return t
+
+        t = self.timer.seconds()
+        self.timer.reset()
+        # Ensure that even if one of pre/run/post fails we still 
+        return t
 
     def header(self):
         """
@@ -167,7 +369,7 @@ class JobDescription(object):
             return
 
         def jpath(x):
-            return os.path.join(self.job_dir, x)
+            return pjoin(self.job_dir, x)
 
         tries = 5
         while 1:
@@ -257,7 +459,7 @@ class JobDescription(object):
         self._try_command(command=self.POST_COMMAND, stage='POST')
 
     @c_logger
-    def _reset(self):
+    def _reset(self, reset_timer=True):
         """
         Used in process_dir() to reset for next execution of this
         JobDescription.
@@ -271,7 +473,8 @@ class JobDescription(object):
         self.log = None
         self.job_dir = None
         self.files_found = None
-        self.timer.reset()
+        if reset_timer:
+            self.timer.reset()
 
     @c_logger
     def _try_command(self, command, stage):
@@ -324,16 +527,19 @@ class JobDescription(object):
         if self.log is not None:
             return False
 
-        if LOGPATH is None: 
-            LOG_BASE = os.path.join(self.job_dir, 'recon.log')
+        if LOGPATH is None:
+            LOG_BASE = pjoin(self.job_dir,
+                             '../recon.log' if self.ISOLATE else 'recon.log')
         else:
             # job_dir is normalized to remove trailing '/'s
-            logd = os.path.join(LOGPATH,
-                                self.NAME,
-                                os.path.basename(self.job_dir))
+            if self.ISOLATE:
+                jname = os.path.basename(os.path.dirname(self.job_dir))
+            else:
+                jname = os.path.basename(self.job_dir)
+            logd = pjoin(LOGPATH, self.NAME, jname)
             if not os.path.exists(logd):
                 os.makedirs(logd)
-            LOG_BASE = os.path.join(logd, 'recon.log')
+            LOG_BASE = pjoin(logd, 'recon.log')
 
         LOG_PAT = LOG_BASE + '.%02d'
         n = 0
