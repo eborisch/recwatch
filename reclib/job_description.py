@@ -304,10 +304,12 @@ class JobDescription(object):
         self.job_dir = directory
         try:
             yield
-        except Exception:
+        except Exception as err:
             self.hprint(0, "Errored while running")
             # traceback.print_exception(*sys.exc_info())
-            raise
+            if not os.path.exists(directory):
+                self.hprint(0, "Directory disappeared between enqueue and run!")
+            raise err
         finally:
             thaw_tasks()
             # We need to read out the timer value outside this context
@@ -331,7 +333,6 @@ class JobDescription(object):
 
         t = self.timer.seconds()
         self.timer.reset()
-        # Ensure that even if one of pre/run/post fails we still 
         return t
 
     def header(self):
@@ -685,3 +686,5 @@ class JobDescription(object):
             # Thread is done at this state; use without lock
             if t_status['pid'] is not None:
                 discard_pid(t_status['pid'], self.PRIORITY)
+
+# vim: et:ts=4:sw=4
