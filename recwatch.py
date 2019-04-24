@@ -153,7 +153,7 @@ if __name__ == '__main__':
         help="[{}] Base path for directories".format(get_prefix()),
         metavar="<dir>")
     paa("--log_dir", default=None,
-        help="Alternate [jobname]/recon.log tree destination", 
+        help="Alternate [jobname]/recon.log tree destination",
         metavar="<dir>")
     paa("--log_file", default='watcher.log',
         help="absolute path to log to when --daemon",
