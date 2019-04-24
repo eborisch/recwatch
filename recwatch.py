@@ -155,6 +155,9 @@ if __name__ == '__main__':
     paa("--log_dir", default=None,
         help="Alternate [jobname]/recon.log tree destination", 
         metavar="<dir>")
+    paa("--log_file", default='watcher.log',
+        help="absolute path to log to when --daemon",
+        metavar="<path>")
     paa("--quiet", default=False, action='store_const',
         const=True,
         help='Exit quietly if already running; notify if not.')
@@ -200,7 +203,7 @@ if __name__ == '__main__':
                 sys.stdout.close()
                 os.close(1)
                 # Since we just closed 1, this attaches 'watcher.log' to fid 1
-                sys.stdout = open('watcher.log', 'a', buffering=0)
+                sys.stdout = open(args.log_file, 'a', buffering=0)
 
                 # Redirect stderr
                 sys.stderr.flush()
