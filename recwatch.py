@@ -264,8 +264,12 @@ if __name__ == '__main__':
     dprint(0, START_MSG)
 
     if args.daemon and STDOUT_SAVE is not None:
-        os.write(STDOUT_SAVE, START_MSG)
-        os.close(STDOUT_SAVE)
+        try:
+            # Don't error out if our original stdout has closed
+            os.write(STDOUT_SAVE, START_MSG)
+            os.close(STDOUT_SAVE)
+        except:
+            pass
         STDOUT_SAVE = None
 
     # Start background threads; one per queue (one per priority level used)
