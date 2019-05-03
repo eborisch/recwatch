@@ -23,6 +23,7 @@
 # SOFTWARE.
 
 import os
+import platform
 import signal
 import subprocess
 import threading
@@ -127,8 +128,13 @@ def find_children_pids(pid_in, ps_out=None):
     ps_out is used when called recursively to avoid extra system calls.
     """
     if ps_out is None:
-        ps_out = subprocess.check_output(('ps', '-A', '-oppid=', '-opid='),
-                                         universal_newlines=True)
+        if 'CYGWIN' in platform.system():
+            ps_out = subprocess.check_output(
+                       "ps -f | awk 'NR==1 {next} /^[^S]/{print $3\" \"$2}'",
+                       shell=True, universal_newlines=True)
+        else:
+            ps_out = subprocess.check_output(('ps', '-A', '-oppid=', '-opid='),
+                                             universal_newlines=True)
         ps_out = [x.strip().split() for x in ps_out.split('\n') if len(x)]
         ps_out = [(int(x[0]), int(x[1])) for x in ps_out]
         # Each element is now (parentpid, pid)
