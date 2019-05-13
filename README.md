@@ -23,3 +23,5 @@ optional arguments:
   --quiet             Exit quietly if already running; notify if not.
   --wait WAIT         Seconds to wait for previous task to exit.
 ```
+
+DOIs for individual releases available at: https://doi.org/10.5281/zenodo.2739382
