@@ -28,7 +28,6 @@ import datetime
 import os
 import subprocess
 import sys
-import thread
 import threading
 
 from collections import namedtuple
@@ -90,7 +89,8 @@ def stamp():
     Returns a timestamp string for logging. (Includes thread ID if DEBUG > 1)
     """
     if DEBUG > 1:
-        return "%s:[%d]" % (str(datetime.now()), thread.get_ident())
+        return "%s:[%d]" % (str(datetime.now()),
+                            threading.currentThread().ident)
     return str(datetime.now())
 
 
