@@ -223,3 +223,5 @@ def thaw_tasks():
                     dprint(0, "%s: Unable to resume: [%s]" % (stamp(), str(e)))
             PAUSED[p] = None
         ACTIVE_LOCK.notify_all()
+
+# vim: et:ts=4:sw=4:si:ai

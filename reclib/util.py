@@ -201,3 +201,5 @@ class TaskTimer(object):
             return 0
         else:
             return time() - self._start_time
+
+# vim: et:ts=4:sw=4:si:ai

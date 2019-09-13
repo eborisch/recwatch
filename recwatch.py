@@ -333,4 +333,4 @@ if __name__ == '__main__':
     os.unlink(PIDPATH)
     sys.exit(0)
 
-# vim: set sw=4 ts=4 et
+# vim: et:ts=4:sw=4:si:ai

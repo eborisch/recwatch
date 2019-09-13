@@ -692,3 +692,5 @@ class JobDescription(object):
             # Thread is done at this state; use without lock
             if t_status['pid'] is not None:
                 discard_pid(t_status['pid'], self.PRIORITY)
+
+# vim: et:ts=4:sw=4:si:ai
