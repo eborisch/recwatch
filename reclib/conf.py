@@ -98,7 +98,7 @@ def load_conf(conf_dir, enabled, disabled):
         g = globals().copy()
         g['JOBS'] = {}
         try:
-            execfile(f, g)
+            exec(compile(open(f, "rb").read(), f, 'exec'), g)
         except Exception as e:
             print("#   Unable to parse job description in [%s]." % f)
             print("#   Error: [%s]" % str(e))
@@ -114,10 +114,10 @@ def load_conf(conf_dir, enabled, disabled):
             "Helper function to throw job errors."
             raise JobError(os.path.basename(f), x)
 
-        for i, job in g['JOBS'].iteritems():
+        for i, job in g['JOBS'].items():
             # Argument checking from parsed file.
             try:
-                if type(i) is not tuple or len(i) is not 2:
+                if type(i) is not tuple or len(i) != 2:
                     JErr("Keys for JOBS must be a (path, pattern) tuple; "
                          "found >>{}<< instead".format(i))
 
@@ -161,4 +161,4 @@ def load_conf(conf_dir, enabled, disabled):
                 continue
     return loaded
 
-
+# vim: et:ts=4:sw=4:si:ai

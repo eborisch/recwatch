@@ -78,7 +78,7 @@ def atomic_create(path, contents):
     # Creates a file at path and places contents into it, but only if the file
     # does not exist.
     afile = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
-    os.write(afile, contents)
+    os.write(afile, contents.encode('UTF-8'))
     os.fsync(afile)
     os.close(afile)
     subprocess.call("sync")
@@ -124,7 +124,7 @@ def mail_log(subject, message, attachment=None):
         return
     try:
         tf = TempFile()
-        tf.write(message)
+        tf.write(message.encode('UTF-8'))
         tf.seek(0, os.SEEK_SET)
         cmd = ["mail", "-s", subject]
         if attachment is not None and sys.platform[:5] == 'linux':

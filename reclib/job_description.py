@@ -24,7 +24,13 @@
 
 from __future__ import print_function
 
-import Queue
+try:
+    # Python 3
+    import queue
+except ImportError:
+    # Python 2
+    import Queue as queue
+
 import os
 import re
 import shlex
@@ -125,7 +131,7 @@ class JobDescription(object):
     (by main thread) with self.enqueue(), and work performed (in a separate
     thread) by self.process_dir()
     """
-    queues = defaultdict(Queue.Queue)
+    queues = defaultdict(queue.Queue)
 
     def __init__(self,
                  name,
@@ -686,5 +692,3 @@ class JobDescription(object):
             # Thread is done at this state; use without lock
             if t_status['pid'] is not None:
                 discard_pid(t_status['pid'], self.PRIORITY)
-
-# vim: et:ts=4:sw=4

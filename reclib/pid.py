@@ -54,8 +54,7 @@ WAITING = [None] * 20
 # PidInfo objects are stored in ACTIVE[] and PAUSED[] to describing running
 # tasks.
 PidInfo = namedtuple('PidInfo',
-                     ('pid', 'timer', 'name'),
-                     verbose=False)
+                     ('pid', 'timer', 'name'))
 
 def get_populated(X):
     """

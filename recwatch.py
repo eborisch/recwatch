@@ -203,7 +203,7 @@ if __name__ == '__main__':
                 sys.stdout.close()
                 os.close(1)
                 # Since we just closed 1, this attaches 'watcher.log' to fid 1
-                sys.stdout = open(args.log_file, 'a', buffering=0)
+                sys.stdout = open(args.log_file, 'a', buffering=1)
 
                 # Redirect stderr
                 sys.stderr.flush()
@@ -266,7 +266,7 @@ if __name__ == '__main__':
     if args.daemon and STDOUT_SAVE is not None:
         try:
             # Don't error out if our original stdout has closed
-            os.write(STDOUT_SAVE, START_MSG)
+            os.write(STDOUT_SAVE, START_MSG.encode('UTF-8'))
             os.close(STDOUT_SAVE)
         except:
             pass
@@ -274,13 +274,13 @@ if __name__ == '__main__':
 
     # Start background threads; one per queue (one per priority level used)
     runners = []
-    for q in JobDescription.queues.itervalues():
+    for q in JobDescription.queues.values():
         runners.append(QueueRunner(q))
         runners[-1].start()
 
     while RUNNING:
         try:
-            for d, n in JOB_DIRS.iteritems():
+            for d, n in JOB_DIRS.items():
                 # We already have a descriptor open to this directory. Just
                 # fstat the descriptor to check for modification.
                 d_m = os.fstat(n['fd']).st_mtime
@@ -313,11 +313,11 @@ if __name__ == '__main__':
         tprint(0, "Exiting due to signal. Waiting for queued jobs.")
 
     tprint(1, 'Queue end-of-execution tasks.')
-    for q in JobDescription.queues.itervalues():
+    for q in JobDescription.queues.values():
         q.put(None)
 
     tprint(1, 'Waiting for work queues to drain.')
-    for q in JobDescription.queues.itervalues():
+    for q in JobDescription.queues.values():
         q.join()
 
     tprint(1, 'Waiting for threads to join.')
@@ -327,7 +327,7 @@ if __name__ == '__main__':
     dprint(1, repr(dir()))
     dprint(1, repr(JOB_DIRS))
     for j in JOB_DIRS:
-        for t in JOB_DIRS[j]['tasks'].itervalues():
+        for t in JOB_DIRS[j]['tasks'].values():
             if t.completed:
                 t.hprint(0, "Exiting -- processed %d." % t.completed)
     os.unlink(PIDPATH)
