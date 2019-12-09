@@ -473,12 +473,16 @@ class JobDescription(object):
         Used in process_dir() to reset for next execution of this
         JobDescription.
         """
-        if isinstance(self.log, file):
-            self.log.write("# %s: Processing completed.\n" %
-                           (stamp()))
-            self.log.flush()
-            self.log.close()
-            self.completed = self.completed + 1
+        if self.log is not None:
+            try:
+                self.log.write("# %s: Processing completed.\n" %
+                               (stamp()))
+                self.log.flush()
+                self.log.close()
+            except:
+                if DEBUG > 0:
+                    print("Unable to close log file?")
+        self.completed = self.completed + 1
         self.log = None
         self.job_dir = None
         self.files_found = None
