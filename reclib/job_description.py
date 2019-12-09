@@ -141,7 +141,8 @@ class JobDescription(object):
                  command=None,
                  priority=0,
                  timeout=3600,
-                 isolate=False):
+                 isolate=False,
+                 email=True):
         # Constants; set at creation
         self.NAME = name
         self.FILES = files
@@ -151,6 +152,7 @@ class JobDescription(object):
         self.PRIORITY = int(max(min(19, priority), 0))
         self.TIMEOUT = timeout
         self.ISOLATE = isolate
+        self.EMAIL = email
 
         command_error = False
         if type(self.COMMAND) is tuple:

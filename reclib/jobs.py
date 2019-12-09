@@ -58,11 +58,12 @@ class QueueRunner(threading.Thread):
                 msg = msg + "; DELAYED by [%0.1fs]." % jTimer.seconds()
             job.hprint(0, msg)
 
-            mail_log("%s: running on %s" % (job.NAME,
-                                            HOSTNAME),
-                     "%s running on %s in %s." % (job.header(),
-                                                  HOSTNAME,
-                                                  job_dir))
+            if job.EMAIL:
+                mail_log("%s: running on %s" % (job.NAME,
+                                                HOSTNAME),
+                         "%s running on %s in %s." % (job.header(),
+                                                      HOSTNAME,
+                                                      job_dir))
             # Actual execution
             try:
                 # All of the actual processing is done here.
