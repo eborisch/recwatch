@@ -41,7 +41,7 @@ _EMAIL = None
 
 def set_email(newval = ''):
     global _EMAIL
-    if newval is not '':
+    if newval != '':
         _EMAIL = newval
     return _EMAIL
 
